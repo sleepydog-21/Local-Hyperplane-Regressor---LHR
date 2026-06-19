@@ -52,6 +52,7 @@ Proyecta los vecinos en el primer componente principal (PCA) del vecindario y di
   - Evaluación rigurosa sobre 10 particiones del dataset real **California Housing**.
   - Validación estadística de calibración de incertidumbre ($\sigma$ local vs. error real) y cobertura de cuantiles.
   - Benchmark comparativo contra modelos del estado del arte (SOTA).
+  - **Experimento Geométrico Sintético (Sección 9)**: Comparativa de LHR-C Angular contra LHR clásico, KNN, LLR, GPR y QRF en 8 funciones geométricas 1D que contienen crestas, valles, codos y discontinuidades suaves.
 
 ---
 
