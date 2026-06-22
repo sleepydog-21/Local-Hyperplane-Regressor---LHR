@@ -46,14 +46,9 @@ Proyecta los vecinos en el primer componente principal (PCA) del vecindario y di
 ## 3. Estructura del Repositorio
 
 - `local_hyperplane_regressor.ipynb`: Cuaderno original con la formulación clásica de LHR.
-- `local_hyperplane_regressor_coherent.ipynb`: Cuaderno principal con:
-  - Implementación optimizada de `CoherentLocalHyperplaneRegressor`.
-  - Experimento sintético 1D (cima de montaña $y = -|x| + \text{ruido}$) donde se demuestra visualmente cómo el LHR-C preserva el pico frente al aplanamiento del LHR clásico.
-  - Evaluación rigurosa sobre 10 particiones del dataset real **California Housing**.
-  - Validación estadística de calibración de incertidumbre ($\sigma$ local vs. error real) y cobertura de cuantiles.
-  - Benchmark comparativo contra modelos del estado del arte (SOTA).
-  - **Experimento Geométrico Sintético (Sección 9)**: Comparativa de LHR-C Angular contra LHR clásico, KNN, LLR, GPR y QRF en 8 funciones geométricas 1D.
-  - **Mitigación del Mal Condicionamiento Numérico (Sección 10)**: Análisis del impacto del número de condición local $\kappa(A)$ en los errores de predicción y mitigación por ponderación suave ($w_j = \kappa_j^{-\gamma}$).
+- `local_hyperplane_regressor_coherent.ipynb`: Cuaderno principal con la implementación y experimentos geométricos/SOTA.
+- `local_hyperplane_regressor_optimization.ipynb`: Nuevo cuaderno de búsqueda en rejilla (Grid Search) sobre el tamaño de los subconjuntos ($p$) y la regularización por estabilidad ($\gamma$).
+- `README.md`: Documentación detallada del repositorio.
 
 ---
 
@@ -85,10 +80,25 @@ Esta estrategia de ponderación suave supera a un filtro rígido (hard threshold
 
 ---
 
+## 6. Búsqueda en Rejilla y Optimización de Hiperparámetros ($p$ y $\gamma$)
+
+Para encontrar la configuración óptima global de LHR-C Angular, realizamos una búsqueda sistemática en el cuaderno `local_hyperplane_regressor_optimization.ipynb`:
+- **Tamaño de Subconjuntos ($p$)**: $9$ a $13$ vecinos.
+- **Poder de Penalización ($\gamma$)**: $0.0$ a $10.0$.
+
+### Conclusiones Principales:
+1. **El valor óptimo de $p$ es $13$**: Al usar más puntos de los necesarios ($p = 13 > n+1$), el sistema de ecuaciones lineal local se vuelve sobredeterminado. Al resolverlo vía mínimos cuadrados ordinarios locales, se genera una regularización implícita sumamente potente que estrecha los intervalos de predicción y disminuye el MAE de forma drástica.
+2. **El valor óptimo de $\gamma$ es $3.0$**: Una penalización moderadamente fuerte ($w_j = \kappa_j^{-3.0}$) es la más efectiva para descartar el efecto dañino de subconjuntos colineales o coplanares remanentes.
+3. **Mejora Absoluta**: La combinación óptima **$p=13, \gamma=3.0$** alcanza un **MAE = 0.4617** y **RMSE = 0.6493** (promediado sobre 3 particiones). Esto supera a modelos clásicos y compite directamente de igual a igual con Gaussian Process Regression (GPR) y Quantile Regression Forest (QRF).
+
+Los mapas de calor visuales de cada métrica se pueden encontrar en la imagen `optimization_heatmaps.png`.
+
+---
+
 ## Requisitos de Instalación
 
 Para ejecutar los notebooks, asegúrate de tener instalado:
 
 ```bash
-pip install numpy scipy scikit-learn matplotlib jupyter nbformat nbconvert
+pip install numpy pandas scipy scikit-learn seaborn matplotlib jupyter nbformat nbconvert
 ```
