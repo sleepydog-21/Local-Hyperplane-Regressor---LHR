@@ -52,7 +52,8 @@ Proyecta los vecinos en el primer componente principal (PCA) del vecindario y di
   - Evaluación rigurosa sobre 10 particiones del dataset real **California Housing**.
   - Validación estadística de calibración de incertidumbre ($\sigma$ local vs. error real) y cobertura de cuantiles.
   - Benchmark comparativo contra modelos del estado del arte (SOTA).
-  - **Experimento Geométrico Sintético (Sección 9)**: Comparativa de LHR-C Angular contra LHR clásico, KNN, LLR, GPR y QRF en 8 funciones geométricas 1D que contienen crestas, valles, codos y discontinuidades suaves.
+  - **Experimento Geométrico Sintético (Sección 9)**: Comparativa de LHR-C Angular contra LHR clásico, KNN, LLR, GPR y QRF en 8 funciones geométricas 1D.
+  - **Mitigación del Mal Condicionamiento Numérico (Sección 10)**: Análisis del impacto del número de condición local $\kappa(A)$ en los errores de predicción y mitigación por ponderación suave ($w_j = \kappa_j^{-\gamma}$).
 
 ---
 
@@ -65,6 +66,22 @@ En los cuadernos comparamos LHR-C contra los siguientes métodos del estado del 
 4. **Predicción Conforme sobre LLR (Split Conformal LLR)**: Intervalos con garantía de cobertura libre de distribución.
 5. **Bootstrap de Regresión Lineal Local (Bootstrap LLR)**: Remuestreo bootstrap local de vecinos.
 6. **Modelos Lineales Locales Bayesianos (Local Bayesian Ridge)**: Regresión lineal Bayesiana ajustada localmente.
+
+---
+
+## 5. Mitigación del Mal Condicionamiento Numérico (Ponderación por $\kappa$)
+
+En LHR, resolver sistemas lineales con pocos vecinos cercanos puede producir matrices de diseño locales $A$ mal condicionadas (cuando los vecinos están alineados o son casi coplanares). Esto provoca que pequeños ruidos en las etiquetas generen coeficientes gigantescos y predicciones erróneas atípicas (outliers).
+
+Para solucionar esto, introducimos una **ponderación suave** basada en el número de condición de la matriz local:
+$$w_j = \frac{1}{\kappa(A_j)^\gamma}$$
+donde $\kappa(A_j) = \sqrt{\kappa(A_j^T A_j)}$ es el número de condición del sistema local y $\gamma \ge 0$ es la potencia de penalización.
+
+### Resultados en California Housing (3 Splits, `cond_threshold=1000`):
+- **Sin Mitigación ($\gamma = 0$)**: MAE = **0.5853**, RMSE = **0.9124** (los planos inestables ensanchan la distribución y aumentan el error).
+- **Con Mitigación ($\gamma = 2$)**: MAE = **0.5184**, RMSE = **0.7571** (la ponderación por condición elimina eficazmente el impacto de los outliers sin descartar rígidamente la información).
+
+Esta estrategia de ponderación suave supera a un filtro rígido (hard thresholding), permitiendo que la agregación del LHR-C sea extremadamente robusta.
 
 ---
 
