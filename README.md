@@ -43,12 +43,33 @@ Proyecta los vecinos en el primer componente principal (PCA) del vecindario y di
 
 ---
 
-## 3. Estructura del Repositorio
+## 3. Flujo de Trabajo del Proyecto
 
-- `local_hyperplane_regressor.ipynb`: Cuaderno original con la formulación clásica de LHR.
-- `local_hyperplane_regressor_coherent.ipynb`: Cuaderno principal con la implementación y experimentos geométricos/SOTA.
-- `local_hyperplane_regressor_optimization.ipynb`: Nuevo cuaderno de búsqueda en rejilla (Grid Search) sobre el tamaño de los subconjuntos ($p$) y la regularización por estabilidad ($\gamma$).
-- `README.md`: Documentación detallada del repositorio.
+El desarrollo y validación del regresor de hiperplanos locales coherentes (LHR-C) sigue una secuencia lógica y experimental documentada a lo largo de los cuadernos:
+
+```mermaid
+graph TD
+    A[local_hyperplane_regressor.ipynb<br>LHR Clásico y Limitaciones] --> B[local_hyperplane_regressor_coherent.ipynb<br>Desarrollo de Coherencia Angular LHR-C y SOTA]
+    B --> C[local_hyperplane_regressor_optimization.ipynb<br>Ajuste de Parámetros: p y gamma]
+    C --> D[pruebas.ipynb<br>Validación en Ingeniería e Incertidumbre Total GMM]
+```
+
+1. **`local_hyperplane_regressor.ipynb` (Línea Base)**:
+   - Contiene la formulación clásica y básica de LHR.
+   - Ilustra las dos limitaciones clave que motivaron la investigación: el aplanamiento (*smoothing*) geométrico cerca de discontinuidades o extremos locales, y la inestabilidad debido al mal condicionamiento de las matrices locales.
+
+2. **`local_hyperplane_regressor_coherent.ipynb` (Desarrollo y Soluciones SOTA)**:
+   - Introduce **LHR-C (Geometrically Coherent LHR)** para preservar crestas y valles mediante similitud de cosenos ponderada (Coherencia Angular en $O(p)$), vecindades jerárquicas y ortantes.
+   - Resuelve el mal condicionamiento numérico mediante **ponderación por número de condición** ($w_j = \kappa_j^{-\gamma}$).
+   - Benchmarking contra algoritmos de referencia en regresión no lineal e intervalos de cuantiles (QRF, GPR, Conformal LLR, Bootstrap LLR y Local Bayesian Ridge).
+
+3. **`local_hyperplane_regressor_optimization.ipynb` (Ajuste Fino de Parámetros)**:
+   - Realiza un barrido en rejilla sistemático sobre el tamaño del subconjunto de vecinos ($p$) y la potencia de penalización ($\gamma$) para California Housing.
+   - Concluye que **$p=13$** (sistema lineal local sobredeterminado con regularización por mínimos cuadrados) y **$\gamma=3.0$** (soft-weighting robusto) es la combinación óptima global.
+
+4. **`pruebas.ipynb` (Generalización y Calibración de Incertidumbre)**:
+   - Evalúa el LHR-C Angular Optimizado frente a KNN y LLR en tres conjuntos de datos reales de física e ingeniería (Concrete, Airfoil, Yacht).
+   - Incorpora la **incertidumbre aleatoria (ruido residual)** y la corrección de intervalos en situaciones de fallback, logrando una calibración óptima.
 
 ---
 
@@ -92,6 +113,28 @@ Para encontrar la configuración óptima global de LHR-C Angular, realizamos una
 3. **Mejora Absoluta**: La combinación óptima **$p=13, \gamma=3.0$** alcanza un **MAE = 0.4617** y **RMSE = 0.6493** (promediado sobre 3 particiones). Esto supera a modelos clásicos y compite directamente de igual a igual con Gaussian Process Regression (GPR) y Quantile Regression Forest (QRF).
 
 Los mapas de calor visuales de cada métrica se pueden encontrar en la imagen `optimization_heatmaps.png`.
+
+---
+
+## 7. Cuantificación de Incertidumbre Total y Calibración (GMM)
+
+La incertidumbre de predicción empírica en LHR clásico sufría de una grave subcobertura (cobertura del 20% para un intervalo nominal del 95%) debido a que solo estimaba la variabilidad epistémica/geométrica de los hiperplanos ($\sigma_{geom}^2$), omitiendo el ruido residual intrínseco del dataset ($\sigma_{residual}^2$).
+
+En el cuaderno `pruebas.ipynb`, el intervalo de predicción se generaliza utilizando un **Modelo de Mezcla Gaussiana (GMM) local**:
+- Cada hiperplano válido $j$ estima su varianza de ruido local $\sigma_{resid, j}^2$ sobre los vecinos más cercanos.
+- Se genera una convolución de ruidos para estimar el intervalo final agregando perturbaciones gaussianas locales:
+  $$\tilde{y}_{j, s} \sim N(\hat{y}_j(x^*), \sigma_{resid, j}^2)$$
+- Si no hay subconjuntos estables (caso de fallback), el intervalo se estima de forma no paramétrica a partir de la distribución local de los vecinos más cercanos, evitando colapsar a ancho cero.
+
+### Resultados de Cobertura Final (Intervalos del 95% nominal):
+
+| Dataset | LHR Clásico | LHR Coherente Angular (Exacto) | LHR Coherente Angular (Optimizado) |
+| :--- | :---: | :---: | :---: |
+| **Concrete Compressive Strength** | 19.13% ± 3.20% | 91.84% ± 0.94% | **95.15% ± 0.31%** |
+| **Airfoil Self-Noise** | 19.14% ± 1.99% | 94.35% ± 1.91% | **96.88% ± 1.00%** |
+| **Yacht Hydrodynamics** | 14.52% ± 7.07% | 96.45% ± 1.88% | **96.45% ± 2.14%** |
+
+*La calibración bajo la corrección GMM de incertidumbre total se alinea casi perfectamente con el nivel de confianza nominal del 95% en los tres conjuntos de datos reales.*
 
 ---
 
